@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+	<style>body{margin:0;background:#444444;}<style>
 	<script src="https://simplewebrtc.com/simplewebrtc.bundle.js"></script>
 	<body onhashchange="if(location.hash.slice(1)){webrtc.joinRoom(location.hash.slice(1));document.forms[0].hidden=true}">
 		<form onsubmit="webrtc.createRoom(this.room.value, function(err, name){location.hash=name});return false"><input name="room" placeholder="Room Name"/><input type="submit" value="create"/></form>
