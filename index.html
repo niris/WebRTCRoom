@@ -1,23 +1,54 @@
 <!DOCTYPE html>
 <html>
-	<style>body{margin:0;background:#444444;}<style>
+	<style>body{margin:0;background:#444444;color:#CCC;}kbd{color:#FFF}</style>
 	<script src="https://simplewebrtc.com/simplewebrtc.bundle.js"></script>
 	<body onhashchange="if(location.hash.slice(1)){webrtc.joinRoom(location.hash.slice(1));document.forms[0].hidden=true}">
-		<form onsubmit="webrtc.createRoom(this.room.value, function(err, name){location.hash=name});return false"><input name="room" placeholder="Room Name"/><input type="submit" value="create"/></form>
+		<form onsubmit="webrtc.createRoom(this.room.value, function(err, name){location.hash=name});return false">
+			<input name="room" placeholder="Room Name"/>
+			<input type="submit" value="create"/>
+			<dl>
+				<dd><kbd>T</kbd>oggle selfie</dd>
+				<dd><kbd>M</kbd>ute</dd>
+				<dd><kbd>U</kbd>nmute</dd>
+				<dd><kbd>P</kbd>ause</dd>
+				<dd><kbd>R</kbd>esume</dd>
+				<dd><kbd>S</kbd>creenCast</dd>
+				<dd><kbd>V</kbd>ideoCast</dd>
+			</dl>
+		</form>
 		<video controls style="position:fixed;bottom:0;right:0;width:20%"></video>
 		<script>
 			var webrtc = new SimpleWebRTC({localVideoEl: document.querySelector('video'),autoRequestMedia: true});
 			webrtc.on('readyToCall', document.body.onhashchange);
 			webrtc.on('videoAdded', function (video, peer) {
-				console.log('peer added', peer);
-				video.id=webrtc.getDomId(peer);
+				video.id = webrtc.getDomId(peer);
+				video.ondrag=video.ondragstart=video.ondragend=video.ondragover=video.ondragenter=video.ondragleave=function(e){e.preventDefault();e.stopPropagation();}
+				video.ondrop=function(e){e.preventDefault();e.stopPropagation();[].slice.call(e.dataTransfer.files).forEach(peer.sendFile,peer)}
 				document.body.appendChild(video);
-				peer.pc.on('iceConnectionStateChange', console.log);
+				//peer.pc.on('iceConnectionStateChange', console.log);
+				peer.on('fileTransfer', function (metadata, receiver) {
+					receiver.on('progress', function (bytesReceived) {bytesReceived/metadata.size;});
+					receiver.on('receivedFile', function (file, metadata) {
+						var a = document.createElement('a');
+						a.href=URL.createObjectURL(file);
+						a.target='_blank';
+						a.download = metadata.name;
+						a.innerText = metadata.name;
+						a.click();
+						document.body.appendChild(a);
+						receiver.channel.close();});
+				});
 			});
-			webrtc.on('videoRemoved', function (video, peer) {
-				console.log('video removed ', peer);
-				document.body.removeChild(document.getElementById(webrtc.getDomId(peer)));
-			});
+			webrtc.on('videoRemoved', function (video, peer) {document.body.removeChild(document.getElementById(webrtc.getDomId(peer)));});
+			document.body.onkeypress=function(ev){switch(ev.key){
+				case 't':webrtc.getLocalVideoContainer().hidden^=1;break;
+				case 'm':webrtc.mute();break;
+				case 'u':webrtc.unmute();break;
+				case 'p':webrtc.pauseVideo();break;
+				case 'r':webrtc.resumeVideo();break;
+				case 's':webrtc.shareScreen();break;
+				case 'v':webrtc.stopScreenShare();break;
+			}}
 		</script>
 	</body>
 </html>
