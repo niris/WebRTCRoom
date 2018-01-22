@@ -1,7 +1,10 @@
 <!DOCTYPE html>
 <html>
-	<style>body{margin:0;background:#444444;color:#CCC;}kbd{color:#FFF}</style>
-	<script src="https://simplewebrtc.com/simplewebrtc.bundle.js"></script>
+	<head>
+		<style>body{margin:0;background:#444444;color:#CCC;}kbd{color:#FFF}</style>
+		<script src="https://simplewebrtc.com/simplewebrtc.bundle.js"></script>
+		<link href="data:image/x-icon;base64,AAABAAEAEBAQAAEABAAoAQAAFgAAACgAAAAQAAAAIAAAAAEABAAAAAAAgAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAA////AKeK/wCUlJQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADMwAAAAAAAAAxMAAAMzMzMzEwAAMRERERERMAMRERERERETAxEREiIRERMDEREiIiEREwMREiIiIhETAxESIiIiERMDEREiEiEREwMRERERERETADERERERETAAAzMzMzMzAAAAAAAAAAAAD//wAA//8AAP+PAAD/xwAAwAcAAIADAAAAAQAAAAEAAAABAAAAAQAAAAEAAAABAAAAAQAAgAMAAMAHAAD//wAA" rel="icon" type="image/x-icon" />
+	</head>
 	<body onhashchange="if(location.hash.slice(1)){webrtc.joinRoom(location.hash.slice(1));document.forms[0].hidden=true}">
 		<form onsubmit="webrtc.createRoom(this.room.value, function(err, name){location.hash=name});return false">
 			<input name="room" placeholder="Room Name"/>
@@ -17,6 +20,9 @@
 			</dl>
 		</form>
 		<video controls style="position:fixed;bottom:0;right:0;width:20%"></video>
+		<form onsubmit="webrtc.sendToAll('chat', this.message.value);this.reset();return false;" style="position:fixed;bottom:0;left:0;z-index:999">
+			<input name=message><input type=submit value=sendToAll />
+		</form>
 		<script>
 			var webrtc = new SimpleWebRTC({localVideoEl: document.querySelector('video'),autoRequestMedia: true});
 			webrtc.on('readyToCall', document.body.onhashchange);
@@ -24,11 +30,20 @@
 				video.id = webrtc.getDomId(peer);
 				video.ondrag=video.ondragstart=video.ondragend=video.ondragover=video.ondragenter=video.ondragleave=function(e){e.preventDefault();e.stopPropagation();}
 				video.ondrop=function(e){e.preventDefault();e.stopPropagation();[].slice.call(e.dataTransfer.files).forEach(peer.sendFile,peer)}
+				video.style="width:100%;max-height:100vh;height:100%;";
 				document.body.appendChild(video);
-				//peer.pc.on('iceConnectionStateChange', console.log);
+				webrtc.getLocalVideoContainer().hidden=true;
+				peer.pc.on('iceConnectionStateChange', function(event){
+					var icons = {checking:"av/videocam",connected:"av/video_call",completed:"navigation/check",disconnected:"av/videocam_off",closed:"navigation/close"};
+					var icon = (icons[event.target.iceConnectionState]||'').split('/');
+					var url = "https://raw.githubusercontent.com/google/material-design-icons/master/"+icon[0]+"/drawable-xxxhdpi/ic_"+icon[1]+"_black_36dp.png";
+					var n = new Notification(event.target.iceConnectionState,{tag:"ice",icon:url,_body:event.target.iceConnectionState});
+					setTimeout(n.close.bind(n), 1000);
+				});
 				peer.on('fileTransfer', function (metadata, receiver) {
-					receiver.on('progress', function (bytesReceived) {bytesReceived/metadata.size;});
+					receiver.on('progress', function (bytesReceived) {new Notification("File Transfert",{tag:"file",body:((100*bytesReceived/metadata.size)+'%').slice(0,5)});});
 					receiver.on('receivedFile', function (file, metadata) {
+						new Notification("File Transfert",{tag:"file",body:"Received: "+metadata.name})
 						var a = document.createElement('a');
 						a.href=URL.createObjectURL(file);
 						a.target='_blank';
@@ -36,8 +51,18 @@
 						a.innerText = metadata.name;
 						a.click();
 						document.body.appendChild(a);
-						receiver.channel.close();});
+						receiver.channel.close();
+					});
 				});
+			});
+			webrtc.on('message', function(msg) {
+				//if(msg.type!='chat')return;
+				console.log(msg)
+				if(msg.to!=webrtc.connection.connection.id)return;
+				if(msg.payload[0]!='/')new Notification("Connection",{body:msg.payload,image:(msg.payload.match(/[^\s]+\.j?pn?g/i)||[])[0]})
+				switch(msg.payload.slice(1)){
+					case "reload":location.reload();
+				}
 			});
 			webrtc.on('videoRemoved', function (video, peer) {document.body.removeChild(document.getElementById(webrtc.getDomId(peer)));});
 			document.body.onkeypress=function(ev){switch(ev.key){
@@ -49,6 +74,8 @@
 				case 's':webrtc.shareScreen();break;
 				case 'v':webrtc.stopScreenShare();break;
 			}}
+			if (Notification && Notification.permission !== "granted")
+				Notification.requestPermission()
 		</script>
 	</body>
 </html>
