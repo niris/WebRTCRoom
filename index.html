@@ -21,10 +21,14 @@
 		</form>
 		<video controls style="position:fixed;bottom:0;right:0;width:20%"></video>
 		<form onsubmit="webrtc.sendToAll('chat', this.message.value);this.reset();return false;" style="position:fixed;bottom:0;left:0;z-index:999">
-			<input name=message><input type=submit value=sendToAll />
+			<input name=message hidden>
 		</form>
 		<script>
-			var webrtc = new SimpleWebRTC({localVideoEl: document.querySelector('video'),autoRequestMedia: true});
+			var webrtc = new SimpleWebRTC({
+				localVideoEl: document.querySelector('video'),
+				autoRequestMedia: true,
+				media: { audio: location.search.indexOf('noaudio')==-1, video: location.search.indexOf('novideo')==-1 }
+			});
 			webrtc.on('readyToCall', document.body.onhashchange);
 			webrtc.on('videoAdded', function (video, peer) {
 				video.id = webrtc.getDomId(peer);
